@@ -12,7 +12,6 @@ public class Passives implements Listener {
 
   @EventHandler
   public void onFallDamage(EntityDamageEvent event) {
-
     if (event.getEntity() instanceof Player) {
       Element spirit = Element.getElement("Spirit");
       Player player = (Player) event.getEntity();
@@ -20,8 +19,9 @@ public class Passives implements Listener {
 
       if (event.isCancelled() || bPlayer == null || bPlayer.hasElement(Element.AIR) || bPlayer.hasElement(Element.EARTH)) {
         return;
+      }
 
-      } else if (bPlayer.hasElement(spirit) && event.getCause() == DamageCause.FALL) {
+      if (bPlayer.hasElement(spirit) && event.getCause() == DamageCause.FALL) {
         event.setDamage(0D);
         event.setCancelled(true);
 

@@ -2,16 +2,20 @@ package me.numin.spirits.ability.spirit;
 
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
-import com.projectkorra.projectkorra.configuration.ConfigManager;
 import com.projectkorra.projectkorra.util.DamageHandler;
-import com.projectkorra.projectkorra.util.ParticleEffect;
 import java.util.Random;
-import me.numin.spirits.Methods;
-import me.numin.spirits.Methods.SpiritType;
 import me.numin.spirits.Spirits;
 import me.numin.spirits.ability.api.SpiritAbility;
+import me.numin.spirits.utilities.Methods;
+import me.numin.spirits.utilities.Methods.SpiritType;
+import me.numin.spirits.utilities.Removal;
+import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Particle;
+import org.bukkit.Particle.DustOptions;
 import org.bukkit.Sound;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -21,19 +25,22 @@ import org.bukkit.util.Vector;
 
 public class Possess extends SpiritAbility implements AddonAbility {
 
-  private LivingEntity target = null;
-  private double range;
-  private long time;
-  private long duration;
-  private double damage;
-  private long cooldown;
-  private boolean progress;
-  private boolean disablePunching;
-  private Vector direction;
-  private Location entityCheck;
-  private Location origin;
-  private boolean allowPossession;
+  //TODO: Test how it interacts with sudden change in pathway (like the spawning of a RaiseEarth that obstructs it's path)
+  //TODO: Test how it interacts with abilities like AirShield and Shelter.
+  //TODO: Add configurable speed for the armor stand/blast feature.
 
+  private ArmorStand armorStand;
+  private DustOptions purple = new DustOptions(Color.fromRGB(130, 0, 193), 1);
+  private Entity target;
+  private GameMode originalGameMode;
+  private Location blast, playerOrigin;
+  private Removal removal;
+  private Vector vector = new Vector(1, 0, 0);
+
+  private boolean hasStarted = false, playEssence, wasFlying;
+  private double damage, range;
+  private float pitch = 0F, volume = 0.1F;
+  private long cooldown, duration, time;
 
   public Possess(Player player) {
     super(player);
@@ -43,117 +50,134 @@ public class Possess extends SpiritAbility implements AddonAbility {
     }
 
     setFields();
-    time = System.currentTimeMillis();
-    player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_AMBIENT, 0.2F, 1);
-    start();
+    this.target = GeneralMethods.getTargetedEntity(player, range);
+    if (target != null) {
+      this.time = System.currentTimeMillis();
+
+      player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_PREPARE_BLINDNESS, 0.3F, -1);
+      Methods.animateVanish(player);
+
+      this.armorStand = this.createArmorStand();
+      this.originalGameMode = player.getGameMode();
+      this.wasFlying = player.isFlying();
+
+      player.setGameMode(GameMode.SPECTATOR);
+      player.setSpectatorTarget(this.armorStand);
+
+      this.removal = new Removal(player, false, target);
+      start();
+    }
   }
 
   private void setFields() {
     this.cooldown = Spirits.plugin.getConfig().getLong("Abilities.Spirits.Neutral.Possess.Cooldown");
-    this.range = Spirits.plugin.getConfig().getDouble("Abilities.Spirits.Neutral.Possess.Radius");
+    this.range = Spirits.plugin.getConfig().getDouble("Abilities.Spirits.Neutral.Possess.Range");
     this.damage = Spirits.plugin.getConfig().getDouble("Abilities.Spirits.Neutral.Possess.Damage");
     this.duration = Spirits.plugin.getConfig().getLong("Abilities.Spirits.Neutral.Possess.Duration");
-    this.disablePunching = ConfigManager.getConfig().getBoolean("Abilities.Spirits.Neutral.Possess.DisablePunching");
-    this.origin = player.getLocation().clone().add(0, 1, 0);
-    this.entityCheck = origin.clone();
-    this.direction = player.getLocation().getDirection();
-    this.progress = true;
-    this.allowPossession = true;
+    this.playerOrigin = player.getLocation().add(0, 1, 0);
+    this.playEssence = true;
   }
 
   @Override
   public void progress() {
-    if (player.isDead() || !player.isOnline() || GeneralMethods.isRegionProtectedFromBuild(this, player.getLocation()) || origin.distanceSquared(entityCheck) > range * range) {
+    if (removal.stop()) {
       remove();
       return;
     }
-
-    if (bPlayer.isParalyzed()) {
+    if (hasStarted && player.isSneaking()) {
       remove();
       return;
     }
-
-    if (!bPlayer.getBoundAbilityName().equals(getName())) {
-      bPlayer.addCooldown(this);
-      remove();
-      return;
-    }
-
-    if (player.isSneaking()) {
-      checkEntities();
-    } else {
-      remove();
-      return;
-    }
-
+    this.possession();
   }
 
-  public void checkEntities() {
-    if (progress) {
-      entityCheck.add(direction.multiply(1));
-    }
-    if (target == null) {
-      for (Entity entity : GeneralMethods.getEntitiesAroundPoint(entityCheck, 1.5)) {
-        if ((entity instanceof LivingEntity) && entity.getUniqueId() != player.getUniqueId()) {
-          target = (LivingEntity) entity;
-        }
-      }
+  private void possession() {
+    this.hasStarted = true;
+    Location targetLocation = target.getLocation().add(0, 1, 0);
+
+    if (System.currentTimeMillis() > time + duration) {
+      this.animateFinalBlow(targetLocation);
     } else {
-      progress = false;
-      entityCheck = target.getLocation();
-      if (target instanceof Player) {
-        Player tPlayer = (Player) target;
-        if (tPlayer.isFlying()) {
-          tPlayer.setFlying(false);
-        }
-      }
-      if (System.currentTimeMillis() > time + duration) {
-        DamageHandler.damageEntity(target, damage, this);
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.5F, 0.5F);
-        remove();
-        return;
+      this.animateTargetEffects(targetLocation);
+      if (this.playEssence) {
+        this.animateEssence(targetLocation);
       } else {
-        this.possess(target, player.getLocation());
+        target.getWorld().spawnParticle(Particle.DRAGON_BREATH, targetLocation, 1, 0.3, 1, 0.3, 0.02);
       }
     }
   }
 
-  public void possess(LivingEntity target, Location location) {
-    if (allowPossession) {
-      bPlayer.addCooldown(this);
-      Location targetLoc = target.getLocation().clone();
+  private void animateEssence(Location targetLocation) {
+    this.blast = Methods.advanceLocationToPoint(vector, this.playerOrigin, targetLocation, 0.9);
+    this.armorStand.teleport(this.blast);
 
-      // Teleport player
-      targetLoc.setPitch(location.getPitch());
-      targetLoc.setYaw(location.getYaw());
-      player.teleport(targetLoc);
-
-      // Grab target
-      Vector vec = targetLoc.getDirection().normalize().multiply(0);
-      target.setVelocity(vec);
-      if (new Random().nextInt(10) == 0) {
-        player.getWorld().playSound(targetLoc, Sound.ENTITY_ELDER_GUARDIAN_AMBIENT, 0.1F, 2);
-      }
-
-      // Possession effects
-      ParticleEffect.DRAGON_BREATH.display(targetLoc, 1, 0.3, 1, 0.3, 0.02);
-      target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 120, 2), true);
-      target.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 100, 2), true);
-      if (disablePunching) {
-        player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, (int) duration, 3), true);
-      }
-      player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 120, 2), true);
+    if (new Random().nextInt(5) == 0) {
+      player.getWorld().playSound(targetLocation, Sound.ENTITY_EVOKER_CAST_SPELL, this.volume, this.pitch);
+      Methods.playSpiritParticles(player, this.blast, 0.5, 0.5, 0.5, 0, 1);
     }
+
+    player.getWorld().spawnParticle(Particle.DRAGON_BREATH, this.blast, 1, 0.2, 0.2, 0.2, 0.02);
+    player.getWorld().spawnParticle(Particle.PORTAL, this.blast, 1, 0, 0, 0, 1);
+    player.getWorld().spawnParticle(Particle.REDSTONE, this.blast, 1, 0, 0, 0, 1, this.purple);
+
+    for (Entity entity : GeneralMethods.getEntitiesAroundPoint(this.blast, 1.5)) {
+      if (entity.equals(target)) {
+        this.playEssence = false;
+        player.setSpectatorTarget(this.target);
+        this.armorStand.remove();
+        break;
+      }
+    }
+  }
+
+  private void animateFinalBlow(Location targetLocation) {
+    DamageHandler.damageEntity(target, damage, this);
+    player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ILLUSIONER_HURT, 0.2F, 0F);
+    player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, targetLocation, 1, 0, 0, 0, 0);
+    player.getWorld().spawnParticle(Particle.CRIT, targetLocation, 5, 0.3, 1, 0.3, 0);
+    remove();
+  }
+
+  private void animateTargetEffects(Location targetLocation) {
+    if (target instanceof LivingEntity) {
+      LivingEntity livingTarget = (LivingEntity) target;
+      livingTarget.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 120, 2), true);
+      livingTarget.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 100, 2), true);
+    }
+
+    if (new Random().nextInt(5) == 0) {
+      player.getWorld().playSound(targetLocation, Sound.ENTITY_EVOKER_CAST_SPELL, this.volume, this.pitch);
+        if (this.blast != null) {
+            Methods.playSpiritParticles(player, this.blast, 0.4, 1, 0.4, 0, 1);
+        }
+    }
+  }
+
+  private ArmorStand createArmorStand() {
+    ArmorStand stand = player.getWorld().spawn(player.getLocation(), ArmorStand.class);
+    stand.setVisible(false);
+    stand.setGravity(false);
+    stand.setCollidable(false);
+    return stand;
   }
 
   @Override
   public void remove() {
-    if (player.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
-      player.removePotionEffect(PotionEffectType.INVISIBILITY);
-    }
-    if (player.hasPotionEffect(PotionEffectType.WEAKNESS) && disablePunching) {
-      player.removePotionEffect(PotionEffectType.WEAKNESS);
-    }
+    player.setSpectatorTarget(null);
+    player.setGameMode(this.originalGameMode);
+    player.setFlying(wasFlying);
+
+      if (this.armorStand != null) {
+          this.armorStand.remove();
+      }
+
+      if (playEssence) {
+          player.teleport(this.blast);
+      } else {
+          player.teleport(player.getLocation().add(0, 2, 0));
+      }
+
+    bPlayer.addCooldown(this);
     super.remove();
   }
 
@@ -164,7 +188,7 @@ public class Possess extends SpiritAbility implements AddonAbility {
 
   @Override
   public Location getLocation() {
-    return null;
+    return player.getLocation();
   }
 
   @Override
@@ -180,18 +204,18 @@ public class Possess extends SpiritAbility implements AddonAbility {
 
   @Override
   public String getInstructions() {
-    return Methods.setSpiritDescriptionColor(SpiritType.NEUTRAL) +
+    return Methods.getSpiritColor(SpiritType.NEUTRAL) +
         Spirits.plugin.getConfig().getString("Language.Abilities.Spirit.Possess.Instructions");
   }
 
   @Override
   public String getAuthor() {
-    return Methods.setSpiritDescriptionColor(SpiritType.NEUTRAL) + Methods.getAuthor();
+    return Methods.getSpiritColor(SpiritType.NEUTRAL) + "" + Methods.getAuthor();
   }
 
   @Override
   public String getVersion() {
-    return Methods.setSpiritDescriptionColor(SpiritType.NEUTRAL) + Methods.getVersion();
+    return Methods.getSpiritColor(SpiritType.NEUTRAL) + Methods.getVersion();
   }
 
   @Override
@@ -216,7 +240,7 @@ public class Possess extends SpiritAbility implements AddonAbility {
 
   @Override
   public boolean isSneakAbility() {
-    return true;
+    return false;
   }
 
   @Override
@@ -225,6 +249,5 @@ public class Possess extends SpiritAbility implements AddonAbility {
 
   @Override
   public void stop() {
-
   }
 }

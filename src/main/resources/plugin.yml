@@ -1,22 +1,26 @@
 name: Spirits
 version: ${project.version}
 main: me.numin.spirits.Spirits
-api-version: 1.13
-depend: [ProjectKorra]
-authors: [Numin]
+api-version: 1.14
+softdepend: [ ProjectKorra ]
+authors: [ Numin ]
 description: Enables your players to be Spirits.
 
 permissions:
+  bending.command.getconfig:
+    default: op
+    description: Allows someone to look at the config with a command.
   bending.water:
-    default: false
+    default: true
     description: Grants access to all Water abilities.
     children:
-      bending.ability.corrupt: true
       bending.ability.purify: true
+      bending.ability.corrupt: true
   bending.spirit:
     default: true
     description: Grants access to all Spirit abilities.
     children:
+      bending.command.choose.spirit: true
       bending.ability.agility: true
       bending.ability.phase: true
       bending.ability.possess: true
@@ -25,14 +29,17 @@ permissions:
     default: true
     description: Grants access to all LightSpirit abilities.
     children:
+      bending.command.choose.lightspirit: true
       bending.ability.alleviate: true
       bending.ability.orb: true
       bending.ability.rejuvenate: true
       bending.ability.shelter: true
+      bending.ability.lightblast: true
   bending.darkspirit:
     default: true
     description: Grants access to all DarkSpirit abilities.
     children:
+      bending.command.choose.darkspirit: true
       bending.ability.infest: true
       bending.ability.intoxicate: true
       bending.ability.shackle: true

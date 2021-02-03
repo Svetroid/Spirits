@@ -1,57 +1,43 @@
 package me.numin.spirits.ability.light;
 
 import com.projectkorra.projectkorra.GeneralMethods;
-import com.projectkorra.projectkorra.ProjectKorra;
 import com.projectkorra.projectkorra.ability.AddonAbility;
-import com.projectkorra.projectkorra.ability.CoreAbility;
-import com.projectkorra.projectkorra.ability.util.Collision;
-import com.projectkorra.projectkorra.airbending.AirSwipe;
-import com.projectkorra.projectkorra.earthbending.EarthBlast;
-import com.projectkorra.projectkorra.firebending.FireBlast;
-import com.projectkorra.projectkorra.firebending.FireBlastCharged;
 import com.projectkorra.projectkorra.util.ParticleEffect;
-import com.projectkorra.projectkorra.waterbending.WaterManipulation;
-import me.numin.spirits.Methods;
-import me.numin.spirits.Methods.SpiritType;
 import me.numin.spirits.Spirits;
 import me.numin.spirits.ability.api.LightAbility;
+import me.numin.spirits.utilities.Methods;
+import me.numin.spirits.utilities.Methods.SpiritType;
+import me.numin.spirits.utilities.Removal;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.util.Vector;
 
 public class Shelter extends LightAbility implements AddonAbility {
+
+  //TODO: Fix the ability not having ability collisions.
+  //TODO: Test how shooting an arrow into the shield works.
+  //TODO: Implement blockArrows config. Maybe separate values for both types of Shelter?
+  //TODO: Update sounds.
 
   public enum ShelterType {
     CLICK, SHIFT
   }
 
-  public ShelterType shelterType;
-
-  private boolean isDamaged;
-  private boolean removeOnDamage;
-  private double startHealth;
-  private Location location;
-  private int range;
-  private long time;
-  private long duration;
-  private Location origin;
+  private Entity target;
+  private Location blast, location, origin;
+  private Removal removal;
+  private ShelterType shelterType;
   private Vector direction;
-  private int currPoint;
-  private boolean progress;
-  private long othersCooldown;
-  private long selfCooldown;
-  private float shieldSize;
-  private float selfShield;
-  private long knockDis;
-  private long selfKnockDis;
-  private long clickDelay;
-  private boolean removeIfFar;
-  private int removeDistance;
 
-  private Location shieldLocation;
+  private boolean blockArrows, moveBlast, removeIfFar, removeOnDamage;
+  private double othersRadius, selfRadius, startHealth;
+  private int currPoint, range, farAwayRange;
+  private long duration, othersCooldown, selfCooldown, time;
 
   public Shelter(Player player, ShelterType shelterType) {
     super(player);
@@ -74,108 +60,95 @@ public class Shelter extends LightAbility implements AddonAbility {
     this.othersCooldown = Spirits.plugin.getConfig().getLong("Abilities.Spirits.LightSpirit.Shelter.Others.Cooldown");
     this.selfCooldown = Spirits.plugin.getConfig().getLong("Abilities.Spirits.LightSpirit.Shelter.Self.Cooldown");
     this.duration = Spirits.plugin.getConfig().getLong("Abilities.Spirits.LightSpirit.Shelter.Duration");
-    this.range = Spirits.plugin.getConfig().getInt("Abilities.Spirits.LightSpirit.Shelter.Range");
-    this.clickDelay = Spirits.plugin.getConfig().getLong("Abilities.Spirits.LightSpirit.Shelter.Others.ClickDelay");
-    this.shieldSize = Spirits.plugin.getConfig().getInt("Abilities.Spirits.LightSpirit.Shelter.Others.ShieldSize");
-    this.selfShield = Spirits.plugin.getConfig().getInt("Abilities.Spirits.LightSpirit.Shelter.Self.ShieldSize");
-    this.knockDis = Spirits.plugin.getConfig().getLong("Abilities.Spirits.LightSpirit.Shelter.Others.KnockbackPower");
-    this.selfKnockDis = Spirits.plugin.getConfig().getLong("Abilities.Spirits.LightSpirit.Shelter.Self.KnockbackPower");
     this.removeOnDamage = Spirits.plugin.getConfig().getBoolean("Abilities.Spirits.LightSpirits.Shelter.RemoveOnDamage");
+    this.range = Spirits.plugin.getConfig().getInt("Abilities.Spirits.LightSpirit.Shelter.Others.Range");
     this.removeIfFar = Spirits.plugin.getConfig().getBoolean("Abilities.Spirits.LightSpirit.Shelter.RemoveIfFarAway.Enabled");
-    this.removeDistance = Spirits.plugin.getConfig().getInt("Abilities.Spirits.LightSpirit.Shelter.RemoveIfFarAway.Distance");
+    this.farAwayRange = Spirits.plugin.getConfig().getInt("Abilities.Spirits.LightSpirit.Shelter.RemoveIfFarAway.Range");
+    this.othersRadius = Spirits.plugin.getConfig().getDouble("Abilities.Spirits.LightSpirit.Shelter.Others.Radius");
+    this.selfRadius = Spirits.plugin.getConfig().getDouble("Abilities.Spirits.LightSpirit.Shelter.Self.Radius");
+
+    this.blockArrows = true;
+
     this.origin = player.getLocation().clone().add(0, 1, 0);
     this.location = origin.clone();
     this.direction = player.getLocation().getDirection();
-    this.progress = true;
-    this.isDamaged = false;
+    this.moveBlast = true;
+    this.removal = new Removal(player);
   }
 
   @Override
   public void progress() {
-    if (player.isDead() || !player.isOnline() || GeneralMethods.isRegionProtectedFromBuild(this, location) || origin.distanceSquared(location) > range * range) {
+    if (removal.stop()) {
       remove();
       return;
     }
+    if (this.shelterType == ShelterType.CLICK) {
+      shieldOther();
+    } else if (this.shelterType == ShelterType.SHIFT && player.isSneaking()) {
+      shieldSelf();
+    }
+  }
 
-    if (removeOnDamage) {
-      if (player.getHealth() < startHealth) {
-        isDamaged = true;
-
+  private void shieldSelf() {
+    if (System.currentTimeMillis() > time + duration) {
+      remove();
+    } else {
+      rotateShield(player.getLocation(), 96, selfRadius);
+      for (Entity approachingEntity : GeneralMethods.getEntitiesAroundPoint(player.getLocation(), selfRadius)) {
+        if (approachingEntity instanceof LivingEntity && !approachingEntity.getUniqueId().equals(player.getUniqueId())) {
+          this.blockEntity((LivingEntity) approachingEntity);
+        } else if (approachingEntity instanceof Projectile && blockArrows) {
+          Projectile projectile = (Projectile) approachingEntity;
+          projectile.getWorld().spawnParticle(Particle.FIREWORKS_SPARK, projectile.getLocation(), 20, 0, 0, 0, 0.09);
+          projectile.remove();
+        }
       }
     }
+  }
 
-    if (shelterType == ShelterType.CLICK) {
-      shieldOther();
-    } else if (shelterType == ShelterType.SHIFT) {
-      if (player.isSneaking()) {
-        shieldSelf();
-      } else {
-        bPlayer.addCooldown(this, selfCooldown);
+  private void shieldOther() {
+    if (moveBlast) {
+      blast = location.add(direction.multiply(1).normalize());
+      progressBlast(blast);
+      if (origin.distance(blast) > range) {
         remove();
         return;
       }
-    }
-  }
-
-  public void shieldSelf() {
-    if (System.currentTimeMillis() > time + duration) {
-      bPlayer.addCooldown(this, selfCooldown);
-      remove();
-      return;
-    } else {
-      rotateShield(player.getLocation(), 96, selfShield);
-      blockMove();
-      for (Entity target : GeneralMethods.getEntitiesAroundPoint(player.getLocation(), selfShield)) {
+      for (Entity target : GeneralMethods.getEntitiesAroundPoint(blast, 2)) {
         if (target instanceof LivingEntity && !target.getUniqueId().equals(player.getUniqueId())) {
-          Methods.setVelocity((LivingEntity) target, -selfKnockDis, 1);
+          this.target = target;
+          this.time = System.currentTimeMillis();
+          this.moveBlast = false;
         }
       }
-    }
-  }
-
-  public void shieldOther() {
-    if (progress) {
-      location.add(direction.multiply(1));
-      progressBlast(location, 100, 0.04F);
-    }
-
-    for (Entity target : GeneralMethods.getEntitiesAroundPoint(location, 2)) {
-      if (target instanceof LivingEntity && !target.getUniqueId().equals(player.getUniqueId())) {
-        bPlayer.addCooldown(this, othersCooldown);
-        if (System.currentTimeMillis() > time + duration) {
+    } else {
+      if (System.currentTimeMillis() > time + duration) {
+        remove();
+      } else {
+        rotateShield(this.target.getLocation(), 100, othersRadius);
+        if (removeIfFar && (player.getLocation().distance(target.getLocation()) > farAwayRange)) {
           remove();
           return;
-        } else {
-          this.progress = false;
-          location = target.getLocation();
-
-          if (isDamaged) {
-            remove();
-            return;
-          }
-          for (Entity target2 : GeneralMethods.getEntitiesAroundPoint(location, shieldSize)) {
-            if (target2 instanceof LivingEntity && !target2.getUniqueId().equals(target.getUniqueId()) && !target2.getUniqueId().equals(player.getUniqueId())) {
-              Methods.setVelocity((LivingEntity) target2, -knockDis, 1);
-            }
-          }
-          blockMove();
-          rotateShield(location, 100, shieldSize);
-          shieldLocation = location;
-
-          if (removeIfFar) {
-            if (player.getLocation().distanceSquared(target.getLocation()) > removeDistance * removeDistance) {
-              remove();
-              return;
-            }
+        }
+        if (removeOnDamage && (player.getHealth() <= startHealth)) {
+          remove();
+          return;
+        }
+        for (Entity approachingEntity : GeneralMethods.getEntitiesAroundPoint(this.target.getLocation(), othersRadius)) {
+          if (approachingEntity instanceof LivingEntity && !approachingEntity.getUniqueId().equals(this.target.getUniqueId()) && !approachingEntity.getUniqueId()
+              .equals(player.getUniqueId())) {
+            this.blockEntity((LivingEntity) approachingEntity);
+          } else if (approachingEntity instanceof Projectile && blockArrows) {
+            Projectile projectile = (Projectile) approachingEntity;
+            projectile.getWorld().spawnParticle(Particle.FIREWORKS_SPARK, projectile.getLocation(), 20, 0, 0, 0, 0.09);
+            projectile.remove();
           }
         }
-      } else {
-        bPlayer.addCooldown(this, clickDelay);
       }
     }
   }
 
-  public void rotateShield(Location location, int points, float size) {
+  private void rotateShield(Location location, int points, double size) {
     for (int t = 0; t < 6; t++) {
       currPoint += 360 / points;
       if (currPoint > 360) {
@@ -191,35 +164,38 @@ public class Shelter extends LightAbility implements AddonAbility {
     }
   }
 
-  public void progressBlast(Location location, int points, float size) {
+  private void progressBlast(Location location) {
     for (int i = 0; i < 6; i++) {
-      currPoint += 360 / points;
+      currPoint += 360 / 100;
       if (currPoint > 360) {
         currPoint = 0;
       }
       double angle = currPoint * Math.PI / 180 * Math.cos(Math.PI);
-      double x = size * (Math.PI * 4 - angle) * Math.cos(angle + i);
-      double z = size * (Math.PI * 4 - angle) * Math.sin(angle + i);
+      double x = 0.04 * (Math.PI * 4 - angle) * Math.cos(angle + i);
+      double z = 0.04 * (Math.PI * 4 - angle) * Math.sin(angle + i);
       location.add(x, 0.1F, z);
-      ParticleEffect.SPELL_INSTANT.display(location, 1, 0, 0, 0, 0);
+      ParticleEffect.SPELL_INSTANT.display(location, 0, 0, 0, 0, 1);
       location.subtract(x, 0.1F, z);
     }
   }
 
-  private static void blockMove() {
-    CoreAbility fireBlast = CoreAbility.getAbility(FireBlast.class);
-    CoreAbility earthBlast = CoreAbility.getAbility(EarthBlast.class);
-    CoreAbility waterManip = CoreAbility.getAbility(WaterManipulation.class);
-    CoreAbility airSwipe = CoreAbility.getAbility(AirSwipe.class);
-    CoreAbility fireBlastCharged = CoreAbility.getAbility(FireBlastCharged.class);
+  private void blockEntity(LivingEntity entity) {
+    Vector velocity = entity.getLocation().toVector().subtract(player.getLocation().toVector()).multiply(0.1);
+    velocity.setY(-0.5);
+    entity.setVelocity(velocity);
+  }
 
-    CoreAbility shelter = CoreAbility.getAbility(Shelter.class);
-
-    CoreAbility[] smallAbilities = {airSwipe, earthBlast, waterManip, fireBlast, fireBlastCharged};
-
-    for (CoreAbility smallAbil : smallAbilities) {
-      ProjectKorra.getCollisionManager().addCollision(new Collision(shelter, smallAbil, false, true));
+  @Override
+  public void remove() {
+    switch (this.shelterType) {
+      case SHIFT:
+        bPlayer.addCooldown(this, selfCooldown);
+        break;
+      case CLICK:
+        bPlayer.addCooldown(this, othersCooldown);
+        break;
     }
+    super.remove();
   }
 
   @Override
@@ -229,12 +205,12 @@ public class Shelter extends LightAbility implements AddonAbility {
 
   @Override
   public Location getLocation() {
-    return shelterType == ShelterType.CLICK ? shieldLocation : player.getLocation();
+    return shelterType == ShelterType.CLICK ? blast : player.getLocation();
   }
 
   @Override
   public double getCollisionRadius() {
-    return shelterType == ShelterType.CLICK ? shieldSize : selfShield;
+    return this.shelterType == ShelterType.CLICK ? othersRadius : selfRadius;
   }
 
   @Override
@@ -250,17 +226,17 @@ public class Shelter extends LightAbility implements AddonAbility {
 
   @Override
   public String getInstructions() {
-    return Methods.setSpiritDescriptionColor(SpiritType.LIGHT) + Spirits.plugin.getConfig().getString("Language.Abilities.LightSpirit.Shelter.Instructions");
+    return Methods.getSpiritColor(SpiritType.LIGHT) + Spirits.plugin.getConfig().getString("Language.Abilities.LightSpirit.Shelter.Instructions");
   }
 
   @Override
   public String getAuthor() {
-    return Methods.setSpiritDescriptionColor(SpiritType.LIGHT) + Methods.getAuthor();
+    return Methods.getSpiritColor(SpiritType.LIGHT) + "" + Methods.getAuthor();
   }
 
   @Override
   public String getVersion() {
-    return Methods.setSpiritDescriptionColor(SpiritType.LIGHT) + Methods.getVersion();
+    return Methods.getSpiritColor(SpiritType.LIGHT) + Methods.getVersion();
   }
 
   @Override
@@ -295,5 +271,4 @@ public class Shelter extends LightAbility implements AddonAbility {
   @Override
   public void stop() {
   }
-
 }

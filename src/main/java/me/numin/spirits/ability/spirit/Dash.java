@@ -1,20 +1,23 @@
 package me.numin.spirits.ability.spirit;
 
-import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
-import me.numin.spirits.Methods;
-import me.numin.spirits.Methods.SpiritType;
 import me.numin.spirits.Spirits;
 import me.numin.spirits.ability.api.SpiritAbility;
+import me.numin.spirits.utilities.Methods;
+import me.numin.spirits.utilities.Methods.SpiritType;
+import me.numin.spirits.utilities.Removal;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 public class Dash extends SpiritAbility implements AddonAbility {
 
-  private long dashCooldown;
-  private long distance;
+  //TODO: Update sounds.
+
   private Location location;
+  private Removal removal;
+
+  private long cooldown, distance;
 
   public Dash(Player player) {
     super(player);
@@ -22,49 +25,49 @@ public class Dash extends SpiritAbility implements AddonAbility {
     if (!bPlayer.canBend(this)) {
       return;
     }
+
     setFields();
     start();
   }
 
   private void setFields() {
-    this.dashCooldown = Spirits.plugin.getConfig().getLong("Abilities.Spirits.Neutral.Agility.Dash.Cooldown");
+    this.cooldown = Spirits.plugin.getConfig().getLong("Abilities.Spirits.Neutral.Agility.Dash.Cooldown");
     this.distance = Spirits.plugin.getConfig().getLong("Abilities.Spirits.Neutral.Agility.Dash.Distance");
     this.location = player.getLocation();
+    this.removal = new Removal(player);
   }
 
   @Override
   public void progress() {
-    if (player.isDead() || !player.isOnline() || GeneralMethods.isRegionProtectedFromBuild(this, location)) {
+    if (removal.stop()) {
       remove();
       return;
     }
-    if (bPlayer.isOnCooldown("Dash")) {
-      remove();
-      return;
-    } else {
-      progressDash();
-    }
+    progressDash();
   }
 
   private void progressDash() {
-    Location loc = player.getLocation();
     player.setVelocity(Methods.setVelocity(player, distance, 0.2));
-    loc.getWorld().playSound(loc, Sound.ENTITY_ELDER_GUARDIAN_HURT, 1.5F, 0.5F);
-    loc.getWorld().playSound(loc, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.3F, 0.5F);
-    Methods.playSpiritParticles(bPlayer, player.getLocation(), 0.5F, 0.5f, 0.5F, 0, 10);
-    bPlayer.addCooldown("Dash", dashCooldown);
+    location.getWorld().playSound(location, Sound.ENTITY_ELDER_GUARDIAN_HURT, 1.5F, 0.5F);
+    location.getWorld().playSound(location, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.3F, 0.5F);
+    Methods.playSpiritParticles(player, player.getLocation(), 0.5, 0.5, 0.5, 0, 10);
     remove();
-    return;
+  }
+
+  @Override
+  public void remove() {
+    bPlayer.addCooldown("Dash", cooldown);
+    super.remove();
   }
 
   @Override
   public long getCooldown() {
-    return dashCooldown;
+    return cooldown;
   }
 
   @Override
   public Location getLocation() {
-    return null;
+    return player.getLocation();
   }
 
   @Override
@@ -74,12 +77,12 @@ public class Dash extends SpiritAbility implements AddonAbility {
 
   @Override
   public String getAuthor() {
-    return Methods.setSpiritDescriptionColor(SpiritType.NEUTRAL) + Methods.getAuthor();
+    return Methods.getSpiritColor(SpiritType.NEUTRAL) + "" + Methods.getAuthor();
   }
 
   @Override
   public String getVersion() {
-    return Methods.setSpiritDescriptionColor(SpiritType.NEUTRAL) + Methods.getVersion();
+    return Methods.getSpiritColor(SpiritType.NEUTRAL) + Methods.getVersion();
   }
 
   @Override
@@ -94,7 +97,7 @@ public class Dash extends SpiritAbility implements AddonAbility {
 
   @Override
   public boolean isHarmlessAbility() {
-    return false;
+    return true;
   }
 
   @Override
@@ -114,5 +117,4 @@ public class Dash extends SpiritAbility implements AddonAbility {
   @Override
   public void stop() {
   }
-
 }
