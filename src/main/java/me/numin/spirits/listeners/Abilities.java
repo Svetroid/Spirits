@@ -1,17 +1,6 @@
 package me.numin.spirits.listeners;
 
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
-import org.bukkit.event.player.PlayerAnimationEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
-import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
-import org.bukkit.event.player.PlayerToggleSneakEvent;
-
 import com.projectkorra.projectkorra.BendingPlayer;
-
 import me.numin.spirits.ability.dark.Intoxicate;
 import me.numin.spirits.ability.dark.Shackle;
 import me.numin.spirits.ability.dark.Strike;
@@ -23,109 +12,110 @@ import me.numin.spirits.ability.spirit.Dash;
 import me.numin.spirits.ability.spirit.Possess;
 import me.numin.spirits.ability.spirit.Soar;
 import me.numin.spirits.ability.spirit.Vanish;
+import me.numin.spirits.ability.water.Corrupt;
+import me.numin.spirits.ability.water.Purify;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 
 public class Abilities implements Listener {
 
-    private boolean isPossessing;
+  private boolean isPossessing;
 
-    @EventHandler
-    public void onSwing(PlayerAnimationEvent event) {
+  @EventHandler
+  public void onSwing(PlayerAnimationEvent event) {
 
-        Player player = event.getPlayer();
-        BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
+    Player player = event.getPlayer();
+    BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
 
-        if (event.isCancelled() || bPlayer == null) {
-            return;
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase(null)) {
-            return;
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Agility")) {
-            new Dash(player);
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Shackle")) {
-            new Shackle(player);
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Shelter")) {
-            new Shelter(player, ShelterType.CLICK);
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Strike")) {
-            new Strike(player);
-
-        }
-
+    if (event.isCancelled() || bPlayer == null) {
+      return;
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase(null)) {
+      return;
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Agility")) {
+      new Dash(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Shackle")) {
+      new Shackle(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Shelter")) {
+      new Shelter(player, ShelterType.CLICK);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Strike")) {
+      new Strike(player);
     }
 
-    @EventHandler
-    public void onSneak(PlayerToggleSneakEvent event) {
+  }
 
-        Player player = event.getPlayer();
-        BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
+  @EventHandler
+  public void onSneak(PlayerToggleSneakEvent event) {
 
-        if (event.isCancelled() || bPlayer == null) {
-            return;
+    Player player = event.getPlayer();
+    BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
 
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase(null)) {
-            return;
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Possess")) {
-            if (event.isSneaking()) {
-                new Possess(player);
-                isPossessing = true;
-            } else {
-                isPossessing = false;
-                return;
-            }
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Alleviate")) {
-            new Alleviate(player);
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Intoxicate")) {
-            new Intoxicate(player);
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Agility")) {
-            new Soar(player);
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Shelter")) {
-            new Shelter(player, ShelterType.SHIFT);
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Vanish")) {
-            new Vanish(player);
-
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Orb")) {
-            new Orb(player);
-
-        }
-
+    if (event.isCancelled() || bPlayer == null) {
+      return;
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase(null)) {
+      return;
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Possess")) {
+      if (event.isSneaking()) {
+        new Possess(player);
+        isPossessing = true;
+      } else {
+        isPossessing = false;
+        return;
+      }
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Alleviate")) {
+      new Alleviate(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Intoxicate")) {
+      new Intoxicate(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Agility")) {
+      new Soar(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Shelter")) {
+      new Shelter(player, ShelterType.SHIFT);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Vanish")) {
+      new Vanish(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Orb")) {
+      new Orb(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Corrupt")) {
+      new Corrupt(player);
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Purify")) {
+      new Purify(player);
     }
 
-    @EventHandler
-    public void onTeleport(PlayerTeleportEvent event) {
+  }
 
-        Player player = event.getPlayer();
-        BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
+  @EventHandler
+  public void onTeleport(PlayerTeleportEvent event) {
 
-        if (event.isCancelled() || bPlayer == null) {
-            return;
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase(null)) {
-            return;
-        } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Vanish")) {
-            if (event.getCause() == TeleportCause.SPECTATE) {
-                event.setCancelled(true);
-            }
-        }
+    Player player = event.getPlayer();
+    BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
+
+    if (event.isCancelled() || bPlayer == null) {
+      return;
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase(null)) {
+      return;
+    } else if (bPlayer.getBoundAbilityName().equalsIgnoreCase("Vanish")) {
+      if (event.getCause() == TeleportCause.SPECTATE) {
+        event.setCancelled(true);
+      }
     }
+  }
 
-    @EventHandler
-    public void onEntityDamage(EntityDamageByEntityEvent event) {
-        if (event.getDamager() instanceof Player) {
-            Player player = (Player) event.getDamager();
-            BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
-            String boundAbility = bPlayer.getBoundAbilityName();
+  @EventHandler
+  public void onEntityDamage(EntityDamageByEntityEvent event) {
+    if (event.getDamager() instanceof Player) {
+      Player player = (Player) event.getDamager();
+      BendingPlayer bPlayer = BendingPlayer.getBendingPlayer(player);
+      String boundAbility = bPlayer.getBoundAbilityName();
 
-            if (boundAbility.equalsIgnoreCase("Possess") && isPossessing && event.getCause() == DamageCause.CONTACT) {
-                event.setCancelled(true);
-                return;
-            }
-        }
+      if (boundAbility.equalsIgnoreCase("Possess") && isPossessing && event.getCause() == DamageCause.CONTACT) {
+        event.setCancelled(true);
+        return;
+      }
     }
+  }
 }

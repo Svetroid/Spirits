@@ -7,6 +7,12 @@ authors: [Numin]
 description: Enables your players to be Spirits.
 
 permissions:
+  bending.water:
+    default: false
+    description: Grants access to all Water abilities.
+    children:
+      bending.ability.corrupt: true
+      bending.ability.purify: true
   bending.spirit:
     default: true
     description: Grants access to all Spirit abilities.

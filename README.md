@@ -14,8 +14,8 @@ Don't know how to code? Well, you can also contribute by downloading the project
 
 # Requirements
 This is a list of requirements for the Spirits add-on:
-- ProjectKorra version 1.8.3+
-- Spigot version 1.12+
+- ProjectKorra version 1.9.0
+- Spigot version 1.16.5
 
 # Spirits API
 Spirits comes with an ever growing API which developers can manipulate for their Spirit addons! Here will be an explanation of what individual aspects of the API means so that you can use them in the most effective manner!
@@ -37,3 +37,8 @@ A lot of the customizable aspects of this API are done by doing "Methods." in yo
 - setSpiritDescriptionColor - Spirits, by default, has a unique description format. There are 2 methods that you can use to achieve a very similar format for your ability. By using this one, you're able to change the color of your description to the Spirits theme color by defining what type of ability your describing.
 
 - setSpiritDescription - Along with editing the color format, you're also able to define the ability type. This will appear at the beginning of your ability description in bold.
+
+
+# Foreword by Svetroid
+
+This fork has been updated by Svetroid to re-add the Corrupt and Purify waterbending moves, updating to the latest version of ProjectKorra and Spigot, as well as making the code generally more robust.
