@@ -1,7 +1,6 @@
 package me.numin.spirits.ability.water;
 
 import com.projectkorra.projectkorra.BendingPlayer;
-import com.projectkorra.projectkorra.Element;
 import com.projectkorra.projectkorra.GeneralMethods;
 import com.projectkorra.projectkorra.ability.AddonAbility;
 import com.projectkorra.projectkorra.ability.WaterAbility;
@@ -10,10 +9,12 @@ import com.projectkorra.projectkorra.util.DamageHandler;
 import com.projectkorra.projectkorra.util.MovementHandler;
 import com.projectkorra.projectkorra.util.ParticleEffect;
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import me.numin.spirits.Spirits;
 import me.numin.spirits.utilities.Methods;
+import me.numin.spirits.utilities.Removal;
 import me.numin.spirits.utilities.SpiritElement;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Location;
@@ -27,44 +28,32 @@ import org.bukkit.potion.PotionEffectType;
 public class Corrupt extends WaterAbility implements AddonAbility {
 
   public LivingEntity target;
-  private double range;
-  public static Set<Integer> heldEntities = new HashSet<Integer>();
-  public byte stage = 0;
   public Location travelLoc = null;
-  private long duration;
-  public double yaw;
-  public Random random;
-  private long cooldown;
-  private boolean hasReached = true;
-  private int ticks;
-  private int chargeTicks;
-  private long time;
+  public static Set<Integer> heldEntities = new HashSet<Integer>();
+  private Removal removal;
+  private Timer timer = new Timer();
+
   private boolean charged = false;
   private boolean setElement;
+  private boolean hasReached = true;
+  private double range;
+  private int ticks, chargeTicks;
+  private long duration, cooldown, time;
 
   public Corrupt(Player player) {
     super(player);
     if (!bPlayer.canBend(this)) {
       return;
     }
-    firstloop:
-    for (int i = 20; i < 100; i++) {
-      Location loc = GeneralMethods.getTargetedLocation(player, range);
-      for (Entity e : GeneralMethods.getEntitiesAroundPoint(loc, 10)) {
-        if (e instanceof LivingEntity && e.getEntityId() != player.getEntityId()) {
-          target = (LivingEntity) e;
-          break firstloop;
-        }
-      }
-    }
-    time = System.currentTimeMillis();
-
-    if (target == null) {
-      return;
-    }
-    heldEntities.add(target.getEntityId());
     setFields();
-    start();
+
+    Entity targetEntity = GeneralMethods.getTargetedEntity(player, range);
+    if (targetEntity instanceof LivingEntity) {
+      this.target = (LivingEntity) targetEntity;
+      heldEntities.add(target.getEntityId());
+      time = System.currentTimeMillis();
+      start();
+    }
   }
 
   private void setFields() {
@@ -72,10 +61,7 @@ public class Corrupt extends WaterAbility implements AddonAbility {
     this.duration = Spirits.plugin.getConfig().getLong("Abilities.Spirits.Water.Corrupt.Duration");
     this.range = Spirits.plugin.getConfig().getDouble("Abilities.Spirits.Water.Corrupt.Range");
     this.setElement = Spirits.plugin.getConfig().getBoolean("Abilities.Spirits.Water.Corrupt.SetElement");
-  }
-
-  public double calculateSize(LivingEntity entity) {
-    return (entity.getEyeLocation().distance(entity.getLocation()) / 2 + 0.8D);
+    this.removal = new Removal(player, true);
   }
 
   @Override
@@ -124,32 +110,16 @@ public class Corrupt extends WaterAbility implements AddonAbility {
 
   @Override
   public void progress() {
-    if (!bPlayer.canBendIgnoreCooldowns(this)) {
+    if (removal.stop() || player.getLocation().distance(target.getLocation()) > range || !bPlayer.canBendIgnoreCooldowns(this)) {
       remove();
+      bPlayer.addCooldown(this);
       return;
     }
 
-    if (target == null || target.isDead()) {
+    if (!charged && !player.isSneaking()) {
       remove();
+      bPlayer.addCooldown(this);
       return;
-    }
-
-    if (!target.getWorld().equals(player.getWorld())) {
-      remove();
-      return;
-    }
-
-    if (target.getLocation().distance(player.getLocation()) > 25) {
-
-      remove();
-      return;
-    }
-
-    if (System.currentTimeMillis() - time > 10000L) {
-      MovementHandler mh = new MovementHandler((Player) player, this);
-      mh.stopWithDuration(5, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "" + ChatColor.UNDERLINE + "* READY *");
-      charged = true;
-      createNewSpirals();
     }
 
     if (System.currentTimeMillis() - time > duration) {
@@ -158,57 +128,70 @@ public class Corrupt extends WaterAbility implements AddonAbility {
       return;
     }
 
-    if (charged) {
-      if (target instanceof Player && setElement) {
-        BendingPlayer bPlayer = BendingPlayer.getBendingPlayer((Player) target);
-        if (bPlayer.hasElement(SpiritElement.LIGHT_SPIRIT)) {
-          bPlayer.addElement(SpiritElement.DARK_SPIRIT);
-          bPlayer.getElements().remove(SpiritElement.LIGHT_SPIRIT);
-          GeneralMethods.saveElements(bPlayer);
-          player.sendMessage(Element.WATER.getColor() + "You have successfully corrupted the " + SpiritElement.LIGHT_SPIRIT.getColor() + "Light Spirit.");
-          target.sendMessage(SpiritElement.DARK_SPIRIT.getColor() + "You are now a" + ChatColor.BOLD + "" + ChatColor.BLUE + " DarkSpirit");
-          ParticleEffect.SPELL_WITCH.display(target.getLocation(), 3, (float) Math.random(), (float) Math.random(), (float) Math.random(), 0.0);
+    if (player.isSneaking() && target != null && !target.isDead() && target.getWorld().equals(player.getWorld())) {
+
+      if (System.currentTimeMillis() - time > 10000L) { // charge time is 10 seconds
+        charged = true;
+      }
+
+      if (charged) {
+        MovementHandler mh = new MovementHandler(player, this);
+        mh.stopWithDuration(5, ChatColor.DARK_PURPLE + "" + ChatColor.BOLD + "" + ChatColor.UNDERLINE + "* READY *");
+        createConvertSpirals();
+        if (target instanceof Player && setElement) {
+          BendingPlayer bPlayer = BendingPlayer.getBendingPlayer((Player) target);
+          if (bPlayer.hasElement(SpiritElement.LIGHT_SPIRIT)) {
+            bPlayer.addElement(SpiritElement.DARK_SPIRIT);
+            bPlayer.getElements().remove(SpiritElement.LIGHT_SPIRIT);
+            GeneralMethods.saveElements(bPlayer);
+            player.sendMessage(ChatColor.ITALIC + "" + ChatColor.LIGHT_PURPLE
+                + "You have successfully corrupted the " + ChatColor.BOLD + "" + SpiritElement.LIGHT_SPIRIT.getColor() + "Light Spirit.");
+            target.sendMessage(ChatColor.ITALIC + "" + ChatColor.LIGHT_PURPLE
+                + "You are now a" + ChatColor.BOLD + "" + SpiritElement.DARK_SPIRIT.getColor() + " DarkSpirit");
+            ParticleEffect.SPELL_WITCH.display(target.getLocation(), 3, (float) Math.random(), (float) Math.random(), (float) Math.random(), 0.0);
+          } else {
+            baseEffect();
+          }
         } else {
-          DamageHandler.damageEntity(target, 7, this);
-          target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 300, 2));
-          ParticleEffect.SPELL_WITCH.display(target.getLocation(), 3, (float) Math.random(), (float) Math.random(), (float) Math.random(), 0.0);
+          baseEffect();
         }
-      } else if (target instanceof Entity || target instanceof LivingEntity) {
-        DamageHandler.damageEntity(target, 7, this);
-        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 300, 2));
-        ParticleEffect.SPELL_WITCH.display(target.getLocation(), 3, (float) Math.random(), (float) Math.random(), (float) Math.random(), 0.0);
+        timer.schedule(new TimerTask() {
+          @Override
+          public void run() {
+            charged = false;
+          }
+        }, 5000L);
+      }
+      handleSpirals();
+
+    }
+  }
+
+  private void handleSpirals() {
+    if (travelLoc == null && this.getStartTime() + duration < System.currentTimeMillis()) {
+      remove();
+      bPlayer.addCooldown(this);
+      travelLoc = player.getEyeLocation();
+    } else if (travelLoc == null) {
+      ticks++;
+      long chargingTime = System.currentTimeMillis() - getStartTime();
+      this.chargeTicks = (int) (chargingTime / 25);
+      if (!charged) {
+        createWaterSpirals();
+      } else {
+        createConvertSpirals();
+      }
+      for (int i = -180; i < 180; i += 10) {
+        target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 300, 128));
+        target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 300, 128));
       }
     }
+  }
 
-    if (stage == 0) {
-
-      if (!player.isSneaking()) {
-        bPlayer.addCooldown(this);
-        remove();
-        return;
-      }
-
-      if (travelLoc == null && this.getStartTime() + duration < System.currentTimeMillis()) {
-        bPlayer.addCooldown(this);
-        travelLoc = player.getEyeLocation();
-      } else if (travelLoc == null) {
-        ticks++;
-        Long chargingTime = System.currentTimeMillis() - getStartTime();
-        this.chargeTicks = (int) (chargingTime / 25);
-        if (!charged) {
-          createSpirals();
-        } else {
-          createNewSpirals();
-        }
-        //ParticleEffect.MAGIC_CRIT.display(0.3F, 0.3F, 0.3F, 0.1F, 8, target.getLocation().clone().add(0, 0.8, 0), 90);
-        //f7f2f6
-        for (int i = -180; i < 180; i += 10) {
-          target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 300, 128));
-          target.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 300, 128));
-        }
-        return;
-      }
-    }
+  private void baseEffect() {
+    DamageHandler.damageEntity(target, 7, this);
+    target.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 300, 2));
+    ParticleEffect.SPELL_WITCH.display(target.getLocation(), 3, (float) Math.random(), (float) Math.random(), (float) Math.random(), 0.0);
   }
 
   public void paralyze(Entity entity) {
@@ -225,7 +208,7 @@ public class Corrupt extends WaterAbility implements AddonAbility {
     mh.stop(ChatColor.DARK_PURPLE + "* CORRUPTING *");
   }
 
-  private void createSpirals() {
+  private void createWaterSpirals() {
     if (hasReached) {
       int amount = chargeTicks + 2;
       double maxHeight = 4;
@@ -250,7 +233,7 @@ public class Corrupt extends WaterAbility implements AddonAbility {
     }
   }
 
-  private void createNewSpirals() {
+  private void createConvertSpirals() {
     if (hasReached) {
       int amount = chargeTicks + 2;
       double maxHeight = 4;
