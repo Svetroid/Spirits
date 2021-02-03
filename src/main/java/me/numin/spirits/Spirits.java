@@ -11,53 +11,55 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class Spirits extends JavaPlugin {
 
-    public static Spirits plugin;
+  public static Spirits plugin;
 
-    @Override
-    public void onEnable() {
-        plugin = this;
+  @Override
+  public void onEnable() {
+    plugin = this;
 
-        new Config(this);
-        new SpiritElement();
+    new Config(this);
+    new SpiritElement();
 
-        CoreAbility.registerPluginAbilities(plugin, "me.numin.spirits.ability");
-        this.registerPermissions();
-        this.registerListeners();
+    CoreAbility.registerPluginAbilities(plugin, "me.numin.spirits.ability");
+    this.registerPermissions();
+    this.registerListeners();
 
-        plugin.getLogger().info("Successfully enabled Spirits.");
-    }
+    plugin.getLogger().info("Successfully enabled Spirits.");
+  }
 
-    @Override
-    public void onDisable() {
-        plugin.getLogger().info("Successfully disabled Spirits.");
-    }
+  @Override
+  public void onDisable() {
+    plugin.getLogger().info("Successfully disabled Spirits.");
+  }
 
-    public static Spirits getInstance() {
-        return plugin;
-    }
+  public static Spirits getInstance() {
+    return plugin;
+  }
 
-    private void registerPermissions() {
-        String[] abilities = {"Infest", "Intoxicate", "Shackle", "Strike",
+  private void registerPermissions() {
+    String[] abilities = {"Infest", "Intoxicate", "Shackle", "Strike",
         "Rejuvenate", "Alleviate", "Orb", "Shelter",
-        "Phase", "Agility", "Vanish", "Possess"};
+        "Phase", "Agility", "Vanish", "Possess", "Purify", "Corrupt"};
 
-        for (String ability : abilities) {
-            CoreAbility coreAbility = CoreAbility.getAbility(ability);
+    for (String ability : abilities) {
+      CoreAbility coreAbility = CoreAbility.getAbility(ability);
 
-            if (coreAbility == null) return;
+      if (coreAbility == null) {
+        return;
+      }
 
-            if (coreAbility.isEnabled()) {
-                if (ProjectKorra.plugin.getServer().getPluginManager().getPermission("bending.ability." + ability.toLowerCase()) == null) {
-                    Permission perm = new Permission("bending.ability." + ability.toLowerCase());
-                    perm.setDefault(PermissionDefault.TRUE);
-                    ProjectKorra.plugin.getServer().getPluginManager().addPermission(perm);
-                }
-            }
+      if (coreAbility.isEnabled()) {
+        if (ProjectKorra.plugin.getServer().getPluginManager().getPermission("bending.ability." + ability.toLowerCase()) == null) {
+          Permission perm = new Permission("bending.ability." + ability.toLowerCase());
+          perm.setDefault(PermissionDefault.TRUE);
+          ProjectKorra.plugin.getServer().getPluginManager().addPermission(perm);
         }
+      }
     }
+  }
 
-    private void registerListeners() {
-        getServer().getPluginManager().registerEvents(new Abilities(), this);
-        getServer().getPluginManager().registerEvents(new Passives(), this);
-    }
+  private void registerListeners() {
+    getServer().getPluginManager().registerEvents(new Abilities(), this);
+    getServer().getPluginManager().registerEvents(new Passives(), this);
+  }
 }

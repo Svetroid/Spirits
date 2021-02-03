@@ -87,12 +87,14 @@ public class Config {
     langConfig.addDefault("Language.Abilities.DarkSpirit.Strike.Instructions", "Left-Click to trigger target spectacle");
 
     // Purify
-    langConfig.addDefault("Language.Abilities.Water.Purify.Description", "PURIFY DESCRIPTION");
-    langConfig.addDefault("Language.Abilities.Water.Purify.Instructions", "PURIFY INSTRUCTIONS");
+    langConfig.addDefault("Language.Abilities.Water.Purify.Description",
+        "A rare technique amongst waterbenders is the ability to influence a Spirit's nature towards either the darkness or the light. Using this ability, you can influence a DarkSpirit to be peaceful and guide them towards the light.");
+    langConfig.addDefault("Language.Abilities.Water.Purify.Instructions", "Hold shift for 10 seconds while looking at an entity");
 
     // Corrupt
-    langConfig.addDefault("Language.Abilities.Water.Corrupt.Description", "CORRUPT DESCRIPTION");
-    langConfig.addDefault("Language.Abilities.Water.Corrupt.Instructions", "CORRUPT INSTRUCTIONS");
+    langConfig.addDefault("Language.Abilities.Water.Corrupt.Description",
+        "A rare technique amongst waterbenders is the ability to influence a Spirit's nature towards either the darkness or the light. Using this ability, you can influence a LightSpirit to be chaotic and follow the will of Vaatu.");
+    langConfig.addDefault("Language.Abilities.Water.Corrupt.Instructions", "Hold shift for 10 seconds while looking at an entity");
 
     //Ability configuration
     config.addDefault("Abilities.Spirits.Neutral.Agility.Enabled", true);

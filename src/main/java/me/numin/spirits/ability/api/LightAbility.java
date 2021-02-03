@@ -7,12 +7,12 @@ import org.bukkit.entity.Player;
 
 public abstract class LightAbility extends ElementalAbility {
 
-    public LightAbility(Player player) {
-        super(player);
-    }
+  public LightAbility(Player player) {
+    super(player);
+  }
 
-    @Override
-    public Element getElement() {
-        return SpiritElement.LIGHT_SPIRIT;
-    }
+  @Override
+  public Element getElement() {
+    return SpiritElement.LIGHT_SPIRIT;
+  }
 }

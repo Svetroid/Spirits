@@ -7,12 +7,12 @@ import org.bukkit.entity.Player;
 
 public abstract class DarkAbility extends ElementalAbility {
 
-    public DarkAbility(Player player) {
-        super(player);
-    }
+  public DarkAbility(Player player) {
+    super(player);
+  }
 
-    @Override
-    public Element getElement() {
-        return SpiritElement.DARK_SPIRIT;
-    }
+  @Override
+  public Element getElement() {
+    return SpiritElement.DARK_SPIRIT;
+  }
 }

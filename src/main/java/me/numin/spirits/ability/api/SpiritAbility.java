@@ -7,12 +7,12 @@ import org.bukkit.entity.Player;
 
 public abstract class SpiritAbility extends ElementalAbility {
 
-    public SpiritAbility(Player player) {
-        super(player);
-    }
+  public SpiritAbility(Player player) {
+    super(player);
+  }
 
-    @Override
-    public Element getElement() {
-        return SpiritElement.SPIRIT;
-    }
+  @Override
+  public Element getElement() {
+    return SpiritElement.SPIRIT;
+  }
 }
