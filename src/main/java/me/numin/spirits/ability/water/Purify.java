@@ -127,7 +127,19 @@ public class Purify extends WaterAbility implements AddonAbility {
       return;
     }
 
+    if (!(target instanceof Player)) {
+      remove();
+      return;
+    }
+
+    BendingPlayer bp = BendingPlayer.getBendingPlayer((Player) target);
+    if (!bp.hasElement(SpiritElement.DARK_SPIRIT)) {
+      remove();
+      return;
+    }
+
     if (player.isSneaking() && target != null && !target.isDead() && target.getWorld().equals(player.getWorld())) {
+      handleSpirals();
 
       if (System.currentTimeMillis() - time > 10000L) { // charge time is 10 seconds
         charged = true;
@@ -148,11 +160,7 @@ public class Purify extends WaterAbility implements AddonAbility {
             target.sendMessage(ChatColor.ITALIC + "" + ChatColor.YELLOW
                 + "You are now a" + ChatColor.BOLD + "" + SpiritElement.LIGHT_SPIRIT.getColor() + " LightSpirit");
             ParticleEffect.FIREWORKS_SPARK.display(target.getLocation(), 3, (float) Math.random(), (float) Math.random(), (float) Math.random(), 0.0F);
-          } else {
-            baseEffect();
           }
-        } else {
-          baseEffect();
         }
         timer.schedule(new TimerTask() {
           @Override
@@ -161,7 +169,6 @@ public class Purify extends WaterAbility implements AddonAbility {
           }
         }, 5000L);
       }
-      handleSpirals();
 
     }
   }

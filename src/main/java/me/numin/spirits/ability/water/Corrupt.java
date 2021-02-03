@@ -128,7 +128,27 @@ public class Corrupt extends WaterAbility implements AddonAbility {
       return;
     }
 
+    if (!(target instanceof Player)) {
+      remove();
+      return;
+    }
+
+    BendingPlayer bp = BendingPlayer.getBendingPlayer((Player) target);
+    if (!bp.hasElement(SpiritElement.LIGHT_SPIRIT)) {
+      remove();
+      return;
+    }
+
     if (player.isSneaking() && target != null && !target.isDead() && target.getWorld().equals(player.getWorld())) {
+
+      if (target instanceof Player) { // TODO: Temporary dirty solution
+        BendingPlayer bPlayer = BendingPlayer.getBendingPlayer((Player) target);
+        if (bPlayer.hasElement(SpiritElement.LIGHT_SPIRIT)) {
+          handleSpirals();
+        }
+      }
+
+      handleSpirals();
 
       if (System.currentTimeMillis() - time > 10000L) { // charge time is 10 seconds
         charged = true;
@@ -149,11 +169,7 @@ public class Corrupt extends WaterAbility implements AddonAbility {
             target.sendMessage(ChatColor.ITALIC + "" + ChatColor.LIGHT_PURPLE
                 + "You are now a" + ChatColor.BOLD + "" + SpiritElement.DARK_SPIRIT.getColor() + " DarkSpirit");
             ParticleEffect.SPELL_WITCH.display(target.getLocation(), 3, (float) Math.random(), (float) Math.random(), (float) Math.random(), 0.0);
-          } else {
-            baseEffect();
           }
-        } else {
-          baseEffect();
         }
         timer.schedule(new TimerTask() {
           @Override
@@ -162,7 +178,6 @@ public class Corrupt extends WaterAbility implements AddonAbility {
           }
         }, 5000L);
       }
-      handleSpirals();
 
     }
   }

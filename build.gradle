@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.spirits'
-version 'BETA-1.0.13e'
+version 'BETA-1.0.13f'
 
 jar {
     sourceCompatibility = JavaVersion.VERSION_1_8
