@@ -30,7 +30,7 @@ public class Shackle extends DarkAbility implements AddonAbility {
 
   private boolean checkEntities;
   private double radius;
-  private float originWalkSpeed;
+  private float originWalkSpeed; // TODO: Probably shouldn't use this. Default walk speed is 0.2, if someone spams this move it can freeze people forever.
   private int currPoint, range;
   private long cooldown, duration, time;
 
@@ -81,7 +81,7 @@ public class Shackle extends DarkAbility implements AddonAbility {
           this.time = System.currentTimeMillis();
           this.target = entity;
           if (entity instanceof Player) {
-            this.originWalkSpeed = ((Player) entity).getWalkSpeed();
+            //this.originWalkSpeed = ((Player) entity).getWalkSpeed(); // TODO: See above.
           }
           checkEntities = false;
         }
@@ -146,7 +146,7 @@ public class Shackle extends DarkAbility implements AddonAbility {
   public void remove() {
     if (this.target != null) {
       if (this.target instanceof Player) {
-        ((Player) this.target).setWalkSpeed(this.originWalkSpeed);
+        ((Player) this.target).setWalkSpeed(0.2f); // Reset to default walk speed.
       }
       LivingEntity livingTarget = (LivingEntity) this.target;
       if (livingTarget.hasPotionEffect(PotionEffectType.JUMP)) {
